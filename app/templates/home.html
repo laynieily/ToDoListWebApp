@@ -1,0 +1,314 @@
+Home.html
+{% extends 'base.html' %} {% block content %} {% if user.is_authenticated %}
+
+
+<div class="container-fluid py-5 position-relative">
+  <!-- Main Content -->
+  <div style="width: 100%; max-width: 700px; margin: 0 auto;">
+    <!-- Top Box: Input Form -->
+    <h2 class="text-center mb-3" style="color: white; letter-spacing: 2px">
+      To Do List
+    </h2>
+    <div
+      class="input-group shadow-sm mb-4"
+      style="border-radius: 40px; overflow: hidden"
+    >
+      <input
+        id="taskInput"
+        type="text"
+        class="form-control form-control-lg border-0 text-white"
+        placeholder="Add a to-do item..."
+        style="background-color: #1a1a1a"
+      />
+      <button
+        id="addTaskBtn"
+        class="btn btn-lg text-white"
+        style="background-color: #333"
+      >
+        Add
+      </button>
+    </div>
+
+
+    <div class="todo-wrapper d-flex">
+      <!-- Main Task Section -->
+      <div
+      class="p-4 border rounded-4 shadow flex-grow-1 w-100"
+      style="background-color: #000000; min-height: 381px"
+    >
+      <ul id="taskList" class="list-group list-group-flush">
+        <!-- Tasks will appear here dynamically -->
+      </ul>
+    </div>
+  </div>
+</div>
+      <!-- Sidebar floated to the far right -->
+<div class="d-flex flex-column gap-2 sidebar" style="position: absolute; top: 175px; right: 775px;">
+<button id="Completed" class="btn btn-sm btn-outline-light">Completed</button>
+<button class="btn btn-sm btn-outline-light">Trash</button>
+<button class="btn btn-sm btn-outline-success">Clear Completed</button>
+<button class="btn btn-sm btn-outline-warning">Clear All</button>
+<form method="POST" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-sm btn-outline-danger w-100">Log out</button>
+</form>
+
+
+</div>
+</div>
+
+
+    <script>
+      document.getElementById("Completed").addEventListener("click", function () {
+        const selectedTask = document.querySelector(".selected-task");
+        if (selectedTask) {
+          selectedTask.classList.toggle("completed");
+        }
+      });
+     
+      // JavaScript for To-Do List Functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        const taskInput = document.getElementById("taskInput");
+        const addTaskBtn = document.getElementById("addTaskBtn");
+        const taskList = document.getElementById("taskList");
+
+
+        // Add task function
+        addTaskBtn.addEventListener("click", function () {
+          const taskText = taskInput.value.trim();
+          if (taskText === "") return;
+
+
+          // Create new task element
+          const li = document.createElement("li");
+          li.className = "list-group-item d-flex justify-content-between align-items-center";
+          li.addEventListener("click", function () {
+            li.classList.toggle("selected-task");
+          });
+          const toggleBtn = document.createElement("button");
+            toggleBtn.className = "check-toggle";
+            toggleBtn.innerHTML = ""; // starts as hollow
+            toggleBtn.onclick = () => {
+              li.classList.toggle("completed");
+              toggleBtn.innerHTML = li.classList.contains("completed") ? "✔" : "";
+            };
+           
+            li.prepend(toggleBtn);
+
+
+          // Task text
+          const taskSpan = document.createElement("span");
+          taskSpan.textContent = taskText;
+          taskSpan.style.cursor = "pointer";
+          taskSpan.addEventListener("dblclick", function () {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.className = "form-control";
+            input.value = taskSpan.textContent;
+            input.style.width = "70%";
+            input.style.display = "inline-block";
+         
+            li.replaceChild(input, taskSpan);
+         
+           
+            const saveTask = () => {
+              taskSpan.textContent = input.value.trim() || taskSpan.textContent;
+              li.replaceChild(taskSpan, input);
+            };
+         
+            input.addEventListener("blur", saveTask);
+            input.addEventListener("keydown", function (e) {
+              if (e.key === "Enter") saveTask();
+            });
+         
+            input.focus();
+          });
+         
+
+
+          li.appendChild(taskSpan);
+
+
+          // Actions (check and remove)
+       
+
+
+          // Check-off button
+          const checkBtn = document.createElement("button");
+          checkBtn.className = "btn btn-sm btn-success me-2";
+          checkBtn.addEventListener("click", function () {
+            if (li.classList.contains("completed")) {
+              li.classList.remove("completed");
+            } else {
+              li.classList.add("completed");
+            }
+          });
+
+
+          // Remove button
+         
+
+
+          // Add task to list
+          taskList.appendChild(li);
+
+
+          // Clear input field
+          taskInput.value = "";
+        });
+      });
+    </script>
+    {% else %}
+    <div
+      class="d-flex justify-content-center align-items-center vh-100 w-100"
+      style="background-color: black"
+    >
+      <form
+        method="POST"
+        action="{% url 'home' %}"
+        class="text-center"
+        style="min-width: 300px"
+      >
+        {% csrf_token %}
+        <h2 class="text-white mb-3 fw-bold">Login</h2>
+
+
+        <div class="form-group mb-3 text-start text-white">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            class="form-control bg-light"
+            id="username"
+            name="username"
+            required
+          />
+        </div>
+
+
+        <div class="form-group mb-3 text-start text-white">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            class="form-control bg-light"
+            id="password"
+            name="password"
+            required
+          />
+        </div>
+
+
+        <button type="submit" class="btn btn-primary w-100 mb-3">
+          Sign In
+        </button>
+        <a href="{% url 'register' %}" class="btn btn-outline-light w-100"
+          >Register</a
+        >
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+
+<style>
+  body {
+    background-color: #f8f9fa;
+    font-family: "Roboto", sans-serif;
+    position: relative; /* Ensure the red shape is positioned correctly relative to the body */
+  }
+  h1,
+  h2 {
+    font-weight: 700;
+  }
+  .list-group-item {
+    transition: all 0.3s ease-in-out;
+  }
+  .list-group-item:hover {
+    background-color: #f1f1f1;
+  }
+  .list-group-item span {
+    font-size: 16px;
+  }
+  .todo-wrapper > .flex-grow-1 {
+    flex: 1;
+    min-width: 0;
+  }
+  .sidebar {
+    min-width: 120px;
+  }
+
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: black;
+  }
+  .list-group-item {
+    background-color: #fdf6ec; /* light cream background */
+    border-radius: 10px;
+    border: 2px solid #dcd2c4;
+    box-shadow: 4px 4px 0 #b4b4b4;
+    margin-bottom: 10px;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    font-size: 16px;
+    color: #2e2e2e;
+  }
+  .selected-task {
+    border: 2px dashed #3399ff;
+    background-color: #cce6ff;
+  }
+  .completed {
+    background-color: #d4f9d4 !important; /* light green */
+  }
+ 
+  .completed span {
+    text-decoration: line-through;
+    color: gray;
+  }
+ 
+  .completed::after {
+    content: "✔ Completed";
+    font-size: 12px;
+    color: #28a745;
+    margin-left: 10px;
+    font-weight: bold;
+  }
+
+
+ 
+  .check-toggle:hover {
+    background-color: #eee;
+  }
+  .check-toggle {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #333;
+    border-radius: 50%;
+    background: none;
+    color: #333;
+    font-size: 16px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+ 
+  /* 🔥 Green checkmark when completed */
+  .completed .check-toggle {
+    background-color:rgb(113, 201, 134);
+    color: white;
+    border-color:rgb(63, 129, 78);
+  }
+ 
+ 
+ 
+</style>
+
+
+{% endblock %}
+
