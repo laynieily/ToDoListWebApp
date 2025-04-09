@@ -1,11 +1,10 @@
-Home.html
 {% extends 'base.html' %} {% block content %} {% if user.is_authenticated %}
 
 
 <div class="container-fluid py-5 position-relative">
-  <!-- Main Content -->
+
   <div style="width: 100%; max-width: 700px; margin: 0 auto;">
-    <!-- Top Box: Input Form -->
+  
     <h2 class="text-center mb-3" style="color: white; letter-spacing: 2px">
       To Do List
     </h2>
@@ -13,36 +12,25 @@ Home.html
       class="input-group shadow-sm mb-4"
       style="border-radius: 40px; overflow: hidden"
     >
-      <input
-        id="taskInput"
-        type="text"
-        class="form-control form-control-lg border-0 text-white"
-        placeholder="Add a to-do item..."
-        style="background-color: #1a1a1a"
-      />
-      <button
-        id="addTaskBtn"
-        class="btn btn-lg text-white"
-        style="background-color: #333"
-      >
-        Add
-      </button>
+      <input id="taskInput" type="text" class="form-control form-control-lg border-0 text-white" placeholder="Add a to-do item..."
+        style="background-color: #1a1a1a"/>
+      <button id="addTaskBtn" class="btn btn-lg text-white" style="background-color: #333">Add</button>
     </div>
 
 
     <div class="todo-wrapper d-flex">
-      <!-- Main Task Section -->
+      
       <div
       class="p-4 border rounded-4 shadow flex-grow-1 w-100"
       style="background-color: #000000; min-height: 381px"
     >
       <ul id="taskList" class="list-group list-group-flush">
-        <!-- Tasks will appear here dynamically -->
+        
       </ul>
     </div>
   </div>
 </div>
-      <!-- Sidebar floated to the far right -->
+  
 <div class="d-flex flex-column gap-2 sidebar" style="position: absolute; top: 175px; right: 775px;">
 <button id="Completed" class="btn btn-sm btn-outline-light">Completed</button>
 <button class="btn btn-sm btn-outline-light">Trash</button>
@@ -66,20 +54,18 @@ Home.html
         }
       });
      
-      // JavaScript for To-Do List Functionality
       document.addEventListener("DOMContentLoaded", function () {
         const taskInput = document.getElementById("taskInput");
         const addTaskBtn = document.getElementById("addTaskBtn");
         const taskList = document.getElementById("taskList");
 
 
-        // Add task function
         addTaskBtn.addEventListener("click", function () {
           const taskText = taskInput.value.trim();
           if (taskText === "") return;
 
 
-          // Create new task element
+      
           const li = document.createElement("li");
           li.className = "list-group-item d-flex justify-content-between align-items-center";
           li.addEventListener("click", function () {
@@ -87,7 +73,7 @@ Home.html
           });
           const toggleBtn = document.createElement("button");
             toggleBtn.className = "check-toggle";
-            toggleBtn.innerHTML = ""; // starts as hollow
+            toggleBtn.innerHTML = ""; 
             toggleBtn.onclick = () => {
               li.classList.toggle("completed");
               toggleBtn.innerHTML = li.classList.contains("completed") ? "✔" : "";
@@ -96,7 +82,6 @@ Home.html
             li.prepend(toggleBtn);
 
 
-          // Task text
           const taskSpan = document.createElement("span");
           taskSpan.textContent = taskText;
           taskSpan.style.cursor = "pointer";
@@ -129,11 +114,6 @@ Home.html
           li.appendChild(taskSpan);
 
 
-          // Actions (check and remove)
-       
-
-
-          // Check-off button
           const checkBtn = document.createElement("button");
           checkBtn.className = "btn btn-sm btn-success me-2";
           checkBtn.addEventListener("click", function () {
@@ -143,17 +123,8 @@ Home.html
               li.classList.add("completed");
             }
           });
-
-
-          // Remove button
-         
-
-
-          // Add task to list
           taskList.appendChild(li);
 
-
-          // Clear input field
           taskInput.value = "";
         });
       });
@@ -214,7 +185,7 @@ Home.html
   body {
     background-color: #f8f9fa;
     font-family: "Roboto", sans-serif;
-    position: relative; /* Ensure the red shape is positioned correctly relative to the body */
+    position: relative; 
   }
   h1,
   h2 {
@@ -246,7 +217,7 @@ Home.html
     background-color: black;
   }
   .list-group-item {
-    background-color: #fdf6ec; /* light cream background */
+    background-color: #fdf6ec; 
     border-radius: 10px;
     border: 2px solid #dcd2c4;
     box-shadow: 4px 4px 0 #b4b4b4;
@@ -260,7 +231,7 @@ Home.html
     background-color: #cce6ff;
   }
   .completed {
-    background-color: #d4f9d4 !important; /* light green */
+    background-color: #d4f9d4 !important; 
   }
  
   .completed span {
@@ -298,7 +269,6 @@ Home.html
     transition: all 0.2s;
   }
  
-  /* 🔥 Green checkmark when completed */
   .completed .check-toggle {
     background-color:rgb(113, 201, 134);
     color: white;
@@ -311,4 +281,5 @@ Home.html
 
 
 {% endblock %}
+
 
