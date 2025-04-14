@@ -8,7 +8,7 @@
       Assigned Tasks
     </h2>
 
-    <!-- Task display area -->
+  
     <div class="todo-wrapper d-flex">
       <div
         class="p-4 border rounded-4 shadow flex-grow-1 w-100"
@@ -41,9 +41,6 @@
     </div>
   </div>
 
-  <!-- Sidebar with only logout -->
-  <!-- Sidebar with only logout -->
-  <!-- Sidebar with logout -->
   <div class="d-flex flex-column gap-2 sidebar">
     <form method="POST" action="{% url 'logout' %}">
       {% csrf_token %}
@@ -52,8 +49,6 @@
       </button>
     </form>
   </div>
-
-  <!-- Styling and interaction script -->
   <script>
     function markComplete(taskId, btn) {
       fetch(`/complete-task/${taskId}/`, {
