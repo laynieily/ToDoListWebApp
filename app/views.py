@@ -1,45 +1,62 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout
-from django.contrib import messages 
-from .forms import SignUpForm
+from django.shortcuts import redirect, render
+from django.contrib import messages
+from .models import CustomUser, Task
+from django.http import JsonResponse
+from .models import Task
 
 def home(request):
-		if request.method == "POST":
-			username = request.POST['username']
-			password = request.POST['password']
-			user = authenticate(request, username = username, password=password)
-			if user is not None:
-				login(request, user)
-				messages.success(request, "Login Successful")
-				return redirect('home')
-			else:
-				messages.success(request, "Login Error")
-				return redirect('home')
-		else:
-			return render(request, 'home.html',{})
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        role = request.POST.get('role')
+
+        if 'register' in request.POST:
+            if CustomUser.objects.filter(username=username).exists():
+                messages.error(request, "⚠️ Username already exists.")
+            else:
+                CustomUser.objects.create(username=username, role=role)
+                messages.success(request, "✅ Registered! You can now log in.")
+            return redirect('home')
+
+        elif 'login' in request.POST:
+            try:
+                user = CustomUser.objects.get(username=username, role=role)
+                request.session['user_id'] = user.id
+                if role == 'assigner':
+                    return redirect('assigner_dashboard')
+                elif role == 'assignee':
+                    return redirect('assignee_dashboard')
+            except CustomUser.DoesNotExist:
+                messages.error(request, "❌ User not found or role mismatch.")
+                return redirect('home')
+
+    return render(request, 'home.html')
 
 
-#def login_user(request):
-#	pass
+
+
+def assigner_dashboard(request):
+    if not request.session.get('user_id'):
+        return redirect('home')
+
+    if request.method == 'POST':
+        text = request.POST.get('task')
+        due_date = request.POST.get('due_date')
+        if text:
+            Task.objects.create(text=text, due_date=due_date or None)
+
+    tasks = Task.objects.filter(deleted=False).order_by('-created_at')
+    return render(request, 'home.html', {'tasks': tasks})
+
+
+def assignee_dashboard(request):
+    if not request.session.get('user_id'):
+        return redirect('home')
+
+    tasks = Task.objects.filter(deleted=False).order_by('-created_at')
+    return render(request, 'assignee.html', {'tasks': tasks})
+
 
 def logout_user(request):
-	logout(request)
-	messages.success(request,"Logged out")
-	return redirect('home')
-
-def register_user(request):
-	if request.method == "POST":
-		form = SignUpForm(request.POST)
-		if form.is_valid():
-			user = form.save()
-			user = authenticate(request, username=form.cleaned_data['username'],
-			                    password=form.cleaned_data['password1'])
-			if user is not None:
-				login(request, user)
-				return redirect('home')
-		else:
-			print("Form errors:", form.errors)  # ✅ Debug output
-	else:
-		form = SignUpForm()
-	return render(request, 'register.html', {'form': form})
+    request.session.flush()
+    return redirect('home')
 
