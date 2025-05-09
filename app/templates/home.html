@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 {% if request.session.user_id %}
-{# layout things and space out things on the to do list page #}
+{# the layout of the to do list page and sidebar #}
 <div class="container-fluid py-5 position-relative d-flex justify-content-center gap-4 px-4 align-items-start">
 
   <div class="todo-container" style="max-width: 700px; width: 100%;">
@@ -21,15 +21,25 @@
       <button id="addTaskBtn" class="btn btn-lg text-white px-4 py-2" style="background-color: #333; font-size: 1.25rem;">Add</button>
     </div>
     
-
+    <!-- List of tasks -->
     <div class="todo-wrapper d-flex">
       <div class="p-4 border rounded-4 shadow flex-grow-1 w-100" style="background-color: #000000; min-height: 381px">
-        <ul id="taskList" class="list-group list-group-flush"></ul>
+        <ul id="taskList" class="list-group list-group-flush">
+          {% for task in tasks %}
+          <li data-id="{{ task.id }}" class="list-group-item d-flex justify-content-between align-items-center {% if task.completed %}completed{% endif %}">
+              <button class="check-toggle">{% if task.completed %}✔{% endif %}</button>
+              <span>{{ task.text }} 
+                {% if task.due_date %}<small>(Due: {{ task.due_date }})</small>{% endif %}
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+        
       </div>
     </div>
   </div>
   
-  {# the sidebar of the to do list page #}
+  {# the layout of the sidebar next to the page #}
   <div class="d-flex flex-column gap-2 sidebar">
     <button id="Completed" class="btn btn-sm btn-outline-light">Completed</button>
     <button id="TrashBtn" class="btn btn-sm btn-outline-light">Delete</button>
@@ -48,48 +58,115 @@
 
 
 <script>
-   // get the task
   let allTasks = [];
   document.addEventListener("DOMContentLoaded", function () {
     const taskInput = document.getElementById("taskInput");
     const addTaskBtn = document.getElementById("addTaskBtn");
     const taskList = document.getElementById("taskList");
+    
+    // Sidebar buttons
+    const btnCompleted = document.getElementById("Completed");
+    const btnTrash = document.getElementById("TrashBtn");
+    const btnClearCompleted = document.getElementById("ClearCompleted");
+    const btnClearAll = document.getElementById("Clear All");
+    const btnViewAll = document.getElementById("View all");
+    const btnNormalView = document.getElementById("Normal View");
   
-    //clear the task when you click on clear on the sidebar
-    document.getElementById("Clear All").addEventListener("click", function () {
-      allTasks.forEach(task => {
-        task.deleted = true;
-        task.element.remove();
+    if (!btnCompleted || !btnTrash || !btnClearCompleted || !btnClearAll || !btnViewAll || !btnNormalView) {
+      console.warn("Sidebar buttons not found in DOM.");
+      return;
+    }
+    
+    // add a new task to the list
+    addTaskBtn.addEventListener("click", function () {
+      const text = taskInput.value.trim();
+      const dueDate = document.getElementById("dueDateInput").value;
+    
+      if (!text) return;
+    
+      fetch("/add_task/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+          text: text,
+          due_date: dueDate
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "success") {
+          location.reload(); 
+        } else {
+          console.error("Failed:", data);
+        }
+      })
+      .catch(err => console.error("Error adding task:", err));
+    });
+    // when you click enterr it will add a task to the list
+    taskInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault(); 
+        addTaskBtn.click(); 
+      }
+    });
+    document.getElementById("dueDateInput").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addTaskBtn.click();
+      }
+    });
+    
+  
+   // the task will load
+    document.querySelectorAll("#taskList li").forEach(item => {
+      item.addEventListener("click", function () {
+        this.classList.toggle("selected-task");
+      });
+  
+      allTasks.push({
+        element: item,
+        completed: item.classList.contains("completed"),
+        deleted: false
       });
     });
-    //Enter a task when you click on the enter key
-    taskInput.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        addTaskBtn.click();
-      }
+    document.querySelectorAll(".check-toggle").forEach(button => {
+      button.addEventListener("click", function (e) {
+        e.stopPropagation(); 
+    
+        const taskItem = this.closest("li");
+        taskItem.classList.toggle("completed");
+    
+      
+        taskItem.classList.add("selected-task");
+    
+        const task = allTasks.find(t => t.element === taskItem);
+        if (task) {
+          task.completed = !task.completed;
+          this.innerHTML = task.completed ? "✔" : "";
+        }
+      });
     });
-    document.getElementById("dueDateInput").addEventListener("keydown", function(e){
-      if(e.key === "Enter"){
-        addTaskBtn.click();
-      }
-    });
-  // mark the task as completed if the button next to the list is click
-    document.getElementById("Completed").addEventListener("click", function () {
+    
+      // all the completed tasks will be mark as completed
+    btnCompleted.addEventListener("click", function () {
       const selectedTasks = document.querySelectorAll(".selected-task");
-selectedTasks.forEach(selectedTask => {
-  selectedTask.classList.toggle("completed");
-  const task = allTasks.find(t => t.element === selectedTask);
-  if (task) {
-    task.completed = !task.completed;
-    const checkToggle = selectedTask.querySelector(".check-toggle");
-    if (checkToggle) {
-      checkToggle.innerHTML = task.completed ? "✔" : "";
-    }
-  }
-});
+      selectedTasks.forEach(selectedTask => {
+        selectedTask.classList.toggle("completed");
+        const task = allTasks.find(t => t.element === selectedTask);
+        if (task) {
+          task.completed = !task.completed;
+          const checkToggle = selectedTask.querySelector(".check-toggle");
+          if (checkToggle) {
+            checkToggle.innerHTML = task.completed ? "✔" : "";
+          }
+        }
+      });
     });
-    // remove the tasks if the task are mark as completed
-    document.getElementById("ClearCompleted").addEventListener("click", function () {
+  // remove completed tasks
+    btnClearCompleted.addEventListener("click", function () {
       allTasks.forEach(task => {
         if (task.completed && !task.deleted) {
           task.deleted = true;
@@ -97,150 +174,69 @@ selectedTasks.forEach(selectedTask => {
         }
       });
     });
-    // if the user clicks on the view all he will see all the tasks he has done
-    document.getElementById("View all").addEventListener("click", function () {
+  //remove all tasks
+    btnClearAll.addEventListener("click", function () {
+      fetch("/clear-all-tasks/", {
+        method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "success") {
+          allTasks.forEach(task => {
+            task.deleted = true;
+            task.element.remove();
+          });
+        }
+      });
+    });
+  // lets view all tasks
+    btnViewAll.addEventListener("click", function () {
       taskList.innerHTML = "";
       allTasks.forEach(task => {
-        task.element.style.opacity = "1";
-        task.element.style.textDecoration = "none";
-        task.element.classList.remove("completed");
-        if (task.deleted) {
-          task.element.style.opacity = "0.5";
-          task.element.style.textDecoration = "line-through";
-        }
-        if (task.completed) {
-          task.element.classList.add("completed");
-        }
+        task.element.style.opacity = task.deleted ? "0.5" : "1";
+        task.element.style.textDecoration = task.deleted ? "line-through" : "none";
+        if (task.completed) task.element.classList.add("completed");
         taskList.appendChild(task.element);
       });
     });
-    //when he clicks on the normal view he will see the task he has not yet deleted or clear
-    document.getElementById("Normal View").addEventListener("click", function () {
+  // only active tasks will be shown if this clicks
+    btnNormalView.addEventListener("click", function () {
       taskList.innerHTML = "";
       allTasks.forEach(task => {
         if (!task.deleted && !task.completed) {
-          task.element.style.opacity = "1";
-          task.element.style.textDecoration = "none";
           task.element.classList.remove("completed");
-    
           taskList.appendChild(task.element);
         }
       });
     });
-    //this will add a task whent the add button is click and clear it after
-    addTaskBtn.addEventListener("click", function () {
-      const dueDateValue = document.getElementById("dueDateInput").value;
-      const taskText = taskInput.value.trim();
-      if (taskText === "") return;
-      taskInput.value = "";
-      document.getElementById("dueDateInput").value = "";
-      const li = document.createElement("li");
-      li.className = "list-group-item d-flex justify-content-between align-items-center";
-      li.addEventListener("click", function () {
-        li.classList.toggle("selected-task");
-      });
-      
-      //create the task
-      const task = {
-        text: taskText,
-        dueDate: dueDateValue,
-        completed: false,
-        deleted: false,
-        element: li
-      };
-      allTasks.unshift(task); 
+    // deleted selected tasks
+    btnTrash.addEventListener("click", function () {
+      const selectedTasks = document.querySelectorAll(".selected-task");
     
-      // this will show completed next to the task
-      const toggleBtn = document.createElement("button");
-      toggleBtn.className = "check-toggle";
-      toggleBtn.innerHTML = "";
-      toggleBtn.onclick = () => {
-        task.completed = !task.completed;
-        li.classList.toggle("completed");
-        toggleBtn.innerHTML = task.completed ? "✔" : "";
-      };
-      li.prepend(toggleBtn);
-
-      //style the due date of the task
-      const taskSpan = document.createElement("span");
-      taskSpan.textContent = taskText;
-      const dateSpan = document.createElement("small");
-      if (dueDateValue) {
-        const [year, month, day] = dueDateValue.split("-");
-        dateSpan.textContent = ` (Due: ${month}/${day}/${year})`;
-      } else {
-        dateSpan.textContent = "";
-      }
-  dateSpan.style.fontSize = "12px";
-  dateSpan.style.marginLeft = "8px";
-  dateSpan.style.color = "#666";
-  taskSpan.appendChild(dateSpan);
-      // when you double click on a task it should be able to edit the task
-      taskSpan.style.cursor = "pointer";
-      taskSpan.addEventListener("dblclick", function () {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "form-control";
-        input.value = taskSpan.textContent;
-        input.style.width = "70%";
-        input.style.display = "inline-block";
-        li.replaceChild(input, taskSpan);
+      selectedTasks.forEach(selectedTask => {
+        const taskId = selectedTask.getAttribute("data-id");
+        
     
-        const saveTask = () => {
-          task.text = input.value.trim() || task.text;
-          taskSpan.textContent = task.text;
-          li.replaceChild(taskSpan, input);
-        };
-    
-        input.addEventListener("blur", saveTask);
-        input.addEventListener("keydown", function (e) {
-          if (e.key === "Enter") saveTask();
+        fetch("/delete-task/", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ id: taskId })
+        })        
+        .then(response => {
+          if (response.ok) {
+            selectedTask.remove();
+          } else {
+            console.error("Failed to delete:", taskText);
+          }
         });
-    
-        input.focus();
-      });
-    
-      li.appendChild(taskSpan);
-    
-   
-      taskList.prepend(li);
-    });
-    // delete the task 
-    document.getElementById("TrashBtn").addEventListener("click", function () {
-      const selectedTask = document.querySelector(".selected-task");
-      if (selectedTask) {
-        const task = allTasks.find(t => t.element === selectedTask);
-        if (task) {
-          task.deleted = true;
-          selectedTask.remove();
-        }
-      }
-    });
-    // view all the tasks the user has deleted or comppleted
-    document.getElementById("View all").addEventListener("click", function () {
-      taskList.innerHTML = "";
-    
-      allTasks.forEach(task => {
-        if (!task.completed && !task.deleted) return;
-    
-        if (task.deleted) {
-          task.element.style.opacity = "0.5";
-          task.element.style.textDecoration = "line-through";
-        } else {
-          task.element.style.opacity = "1";
-          task.element.style.textDecoration = "none";
-        }
-    
-        if (task.completed) {
-          task.element.classList.add("completed");
-        }
-    
-        taskList.appendChild(task.element);
       });
     });
-    
-    
   });
+
   
 </script>
 

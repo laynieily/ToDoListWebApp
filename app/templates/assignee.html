@@ -1,5 +1,4 @@
 {% extends 'base.html' %} {% block content %} {% if request.session.user_id %}
-
 <div
   class="container-fluid py-5 position-relative d-flex justify-content-center gap-4 px-4 align-items-start"
 >
@@ -7,8 +6,6 @@
     <h2 class="text-center mb-3" style="color: white; letter-spacing: 2px">
       Assigned Tasks
     </h2>
-
-  
     <div class="todo-wrapper d-flex">
       <div
         class="p-4 border rounded-4 shadow flex-grow-1 w-100"
@@ -21,15 +18,16 @@
           >
             <button
               class="check-toggle"
+              data-id="{{ task.id }}"
               onclick="markComplete({{ task.id }}, this)"
             >
               {% if task.completed %}✔{% endif %}
             </button>
-            <span>
+            <span class="task-text">
               {{ task.text }} {% if task.due_date %}
-              <small style="font-size: 12px; margin-left: 8px; color: #666">
-                (Due: {{ task.due_date|date:'m/d/Y' }})
-              </small>
+              <small style="font-size: 12px; margin-left: 8px; color: #666"
+                >(Due: {{ task.due_date|date:'m/d/Y' }})</small
+              >
               {% endif %}
             </span>
           </li>
@@ -42,6 +40,9 @@
   </div>
 
   <div class="d-flex flex-column gap-2 sidebar">
+    <button id="MarkCompleted" class="btn btn-sm btn-outline-light">
+      Completed
+    </button>
     <form method="POST" action="{% url 'logout' %}">
       {% csrf_token %}
       <button type="submit" class="btn btn-sm btn-outline-danger w-100">
@@ -49,8 +50,47 @@
       </button>
     </form>
   </div>
-  <script>
-    function markComplete(taskId, btn) {
+</div>
+
+<script>
+  // when you click the task it will be highlighted
+  document.querySelectorAll(".list-group-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      if (!e.target.classList.contains("check-toggle")) {
+        item.classList.toggle("selected-task");
+      }
+    });
+  });
+
+  // mark the task as completed or incompleted
+  function markComplete(taskId, btn) {
+    fetch(`/complete-task/${taskId}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const item = btn.closest("li");
+        if (data.completed) {
+          item.classList.add("completed");
+          item.classList.remove("selected-task");
+          btn.innerHTML = "✔";
+        } else {
+          item.classList.remove("completed");
+          btn.innerHTML = "";
+        }
+      });
+  }
+
+  // all the selected tasks will be mark as completed
+  document.getElementById("MarkCompleted").addEventListener("click", () => {
+    const selected = document.querySelectorAll(".selected-task");
+    selected.forEach((item) => {
+      const btn = item.querySelector(".check-toggle");
+      const taskId = btn.getAttribute("data-id");
+
       fetch(`/complete-task/${taskId}/`, {
         method: "POST",
         headers: {
@@ -59,108 +99,114 @@
       })
         .then((res) => res.json())
         .then((data) => {
-          btn.innerHTML = data.completed ? "✔" : "";
-          btn.parentElement.classList.toggle("completed");
+          if (data.completed) {
+            item.classList.add("completed");
+            item.classList.remove("selected-task");
+            btn.innerHTML = "✔";
+          } else {
+            item.classList.remove("completed");
+            btn.innerHTML = "";
+          }
         });
-    }
-  </script>
+    });
+  });
+</script>
+<style>
+  .list-group-item {
+    background-color: #fdf6ec;
+    border-radius: 10px;
+    border: 2px solid #dcd2c4;
+    box-shadow: 4px 4px 0 #b4b4b4;
+    margin-bottom: 10px;
+    font-family: "Comic Sans MS", cursive, sans-serif;
+    font-size: 16px;
+    color: #2e2e2e;
+    transition: all 0.3s ease-in-out;
+  }
+  .list-group-item:hover {
+    background-color: #f1f1f1;
+  }
+  .completed {
+    background-color: #d4f9d4 !important;
+  }
+  .completed .task-text {
+    text-decoration: line-through;
+    color: gray;
+  }
 
-  <style>
-    .list-group-item {
-      background-color: #fdf6ec;
-      border-radius: 10px;
-      border: 2px solid #dcd2c4;
-      box-shadow: 4px 4px 0 #b4b4b4;
-      margin-bottom: 10px;
-      font-family: "Comic Sans MS", cursive, sans-serif;
-      font-size: 16px;
-      color: #2e2e2e;
-      transition: all 0.3s ease-in-out;
-    }
+  .task-text::after {
+    content: "✔ Completed";
+    font-size: 12px;
+    color: #28a745;
+    margin-left: 10px;
+    font-weight: bold;
+    display: none;
+  }
+  .completed .task-text::after {
+    display: inline;
+  }
 
-    .list-group-item:hover {
-      background-color: #f1f1f1;
-    }
+  .check-toggle {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #333;
+    border-radius: 50%;
+    background: none;
+    color: #333;
+    font-size: 16px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .check-toggle:hover {
+    background-color: #eee;
+  }
+  .completed .check-toggle {
+    background-color: rgb(113, 201, 134);
+    color: white;
+    border-color: rgb(63, 129, 78);
+  }
 
-    .completed {
-      background-color: #d4f9d4 !important;
-    }
-
-    .completed span {
-      text-decoration: line-through;
-      color: gray;
-    }
-
-    .completed::after {
-      content: "✔ Completed";
-      font-size: 12px;
-      color: #28a745;
-      margin-left: 10px;
-      font-weight: bold;
-    }
-
-    .check-toggle {
-      width: 28px;
-      height: 28px;
-      border: 2px solid #333;
-      border-radius: 50%;
-      background: none;
-      color: #333;
-      font-size: 16px;
-      margin-right: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .check-toggle:hover {
-      background-color: #eee;
-    }
-
-    .completed .check-toggle {
-      background-color: rgb(113, 201, 134);
-      color: white;
-      border-color: rgb(63, 129, 78);
-    }
-    .sidebar {
-      position: relative;
-      margin-top: 55px;
-      min-width: 150px;
-    }
-
-    .btn-outline-danger {
-      background: transparent;
-      color: red;
-      border: 1px solid red;
-      font-weight: bold;
-      text-align: center;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      transition: all 0.3s ease;
-    }
-
-    .btn-outline-danger:hover {
-      background-color: red;
-      color: white;
-      border-color: red;
-    }
-
-    html,
-    body {
-      background-color: black;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-  </style>
-
-  {% else %}
-  <p class="text-white text-center mt-5">
-    You must be logged in to view this page.
-  </p>
-  {% endif %} {% endblock %}
-</div>
+  .selected-task {
+    background-color: #d4eaff !important;
+    border: 2px dashed #66b3ff;
+    color: #1a1a1a;
+  }
+  .sidebar {
+    position: relative;
+    margin-top: 55px;
+    min-width: 150px;
+  }
+  .btn-outline-danger {
+    background: transparent;
+    color: red;
+    border: 1px solid red;
+    font-weight: bold;
+    text-align: center;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+  .btn-outline-danger:hover {
+    background-color: red;
+    color: white;
+    border-color: red;
+  }
+  html,
+  body {
+    background-color: black;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+{% else %}
+<p class="text-white text-center mt-5">
+  You must be logged in to view this page.
+</p>
+{% endif %} {% endblock %}
