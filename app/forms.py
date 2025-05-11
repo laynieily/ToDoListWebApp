@@ -1,33 +1,26 @@
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
 from django import forms
+from .models import Task
+from django.contrib.auth.forms import UserCreationForm
+from .models import CustomUser
 
 class SignUpForm(UserCreationForm):
-	email = forms.EmailField(label="Email",widget=forms.TextInput(attrs={'class':'form-control','placeholder':'somethin@domain.com'}))
-	first_name = forms.CharField(label="First Name",widget=forms.TextInput(attrs={'class':'form-control','placeholder':'Your name'}))
-	last_name = forms.CharField(label="Last Name",widget=forms.TextInput(attrs={'class':'form-control','placeholder':'Your last name'}))
+    role = forms.ChoiceField(choices=CustomUser.ROLE_CHOICES)
 
-	class Meta:
-		model = User
-		fields = ('username','first_name','last_name','email','password1','password2')
+    class Meta:
+        model = CustomUser
+        fields = ['username', 'password1', 'password2', 'role']
 
-	def __init__(self,*args,**kwargs):
-		super(SignUpForm,self).__init__(*args, **kwargs)
+class TaskForm(forms.ModelForm):
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'due_date', 'alarm_days', 'assigned_to']
+        widgets = {
+            'assigned_to': forms.SelectMultiple(attrs={'class': 'form-control'}),
+        }
 
-		self.fields['username'].widget.attrs['class'] = 'form-control'
-		self.fields['username'].widget.attrs['placeholder'] = 'User Name'
-		self.fields['username'].label = ''
-		self.fields['username'].help_text = '<span class="form-text text-muted"><small>Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.</small></span>'
+    def __init__(self, *args, **kwargs):
+        super(TaskForm, self).__init__(*args, **kwargs)
+        self.fields['assigned_to'].queryset = CustomUser.objects.filter(role='assignee')      
 
-		self.fields['password1'].widget.attrs['class'] = 'form-control'
-		self.fields['password1'].widget.attrs['placeholder'] = 'Password'
-		self.fields['password1'].label = ''
-		self.fields['password1'].help_text = '<ul class="form-text text-muted small"><li>Your password can\'t be too similar to your other personal information.</li><li>Your password must contain at least 8 characters.</li><li>Your password can\'t be a commonly used password.</li><li>Your password can\'t be entirely numeric.</li></ul>'
 
-		self.fields['password2'].widget.attrs['class'] = 'form-control'
-		self.fields['password2'].widget.attrs['placeholder'] = 'Confirm Password'
-		self.fields['password2'].label = ''
-		self.fields['password2'].help_text = '<span class="form-text text-muted"><small>Enter the same password as before, for verification.</small></span>'	
 
-		for field in self.fields.values():
-    			field.widget.attrs['class'] = 'form-control bg-light'

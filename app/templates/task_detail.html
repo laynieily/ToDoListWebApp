@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load task_extras %}
+{% block content %}
+<h2>Task Details</h2>
+
+<p><strong>Title:</strong> {{ task.title }}</p>
+<p><strong>Description:</strong> {{ task.description }}</p>
+<p><strong>Due Date:</strong> {{ task.due_date }}</p>
+<p><strong>Alarm Days:</strong> {{ task.alarm_days }}</p>
+<p><strong>Assigned By:</strong> {{ task.assigner.username }}</p>
+
+<h4>Assignees</h4>
+<ul>
+    {% for user in task.assigned_to.all %}
+        {% with user_status=task.statuses|get_user_status:user %}
+            <li><strong>{{ user.username }}</strong> — {{ user_status.status|default:"Not started" }}</li>
+        {% endwith %}
+    {% empty %}
+        <li>No assignees.</li>
+    {% endfor %}
+</ul>
+
+<a href="{% url 'dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+{% endblock %}
+

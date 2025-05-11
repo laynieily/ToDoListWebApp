@@ -1,151 +1,143 @@
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, render, redirect
+from django.http import HttpResponseForbidden
+from .forms import SignUpForm, TaskForm
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.models import User
 from django.contrib import messages
-from .models import CustomUser, Task
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
-from .models import Task
+from .models import Task, TaskStatus, CustomUser
 
-def home(request):
-    if not request.session.get('user_id'):
-        if request.method == 'POST':
-            username = request.POST.get('username')
-            role = request.POST.get('role')
-
-            if 'register' in request.POST:
-                if CustomUser.objects.filter(username=username).exists():
-                    messages.error(request, "⚠️ Username already exists.")
-                else:
-                    CustomUser.objects.create(username=username, role=role)
-                    messages.success(request, "✅ Registered! You can now log in.")
-                return redirect('home')
-
-            elif 'login' in request.POST:
-                try:
-                    user = CustomUser.objects.get(username=username, role=role)
-                    request.session['user_id'] = user.id
-                    return redirect('assigner_dashboard') if role == 'assigner' else redirect('assignee_dashboard')
-                except CustomUser.DoesNotExist:
-                    messages.error(request, "❌ User not found or role mismatch.")
-                    return redirect('home')
-
-        return render(request, 'home.html')  
-
-    
-    user = CustomUser.objects.get(id=request.session['user_id'])
-    return redirect('assigner_dashboard') if user.role == 'assigner' else redirect('assignee_dashboard')
-
-
-def assigner_dashboard(request):
-    if not request.session.get('user_id'):
-        return redirect('home')
-
-    if request.method == 'POST':
-        text = request.POST.get('task')
-        due_date = request.POST.get('due_date')
-
-        if text:
-            assigner = CustomUser.objects.get(id=request.session['user_id'])
-            Task.objects.create(
-                text=text,
-                due_date=due_date or None,
-                assigner=assigner,
-            )
-            messages.success(request, "✅ Task created successfully.")
-        else:
-            messages.error(request, "⚠️ Task text is required.")
-
-    tasks = Task.objects.filter(deleted=False).order_by('-created_at')  
-    return render(request, 'home.html', {'tasks': tasks})
-
-
-def assignee_dashboard(request):
-    if not request.session.get('user_id'):
-        return redirect('home')
-
-    tasks = Task.objects.filter(deleted=False).order_by('-created_at')  
-    return render(request, 'assignee.html', {'tasks': tasks})
-
-
-
-def logout_user(request):
-    request.session.flush()
-    return redirect('home')
-
-
-@csrf_exempt
-def delete_task(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        task_id = data.get("id")
-        try:
-            task = Task.objects.get(id=task_id)
-            task.deleted = True
-            task.save()
-            return JsonResponse({"success": True})
-        except Task.DoesNotExist:
-            return JsonResponse({"success": False, "error": "Task not found"}, status=404)
-@csrf_exempt
-def clear_all_tasks(request):
-    if request.method == 'POST':
-        Task.objects.all().delete()
-        return JsonResponse({'status': 'success'})
-    return JsonResponse({'status': 'invalid_method'}, status=400)
-@csrf_exempt
-def add_task(request):
-    if request.method == 'POST':
-        user_id = request.session.get('user_id')
-        if not user_id:
-            return JsonResponse({'status': 'not_logged_in'})
-
-        data = json.loads(request.body)
-        text = data.get('text')
-        due_date = data.get('due_date')
-
-        user = CustomUser.objects.get(id=user_id)
-
-        Task.objects.create(
-            text=text,
-            due_date=due_date or None,
-            assigner=user  
-        )
-
-        return JsonResponse({'status': 'success'})
-    return JsonResponse({'status': 'invalid_method'})
-@csrf_exempt
-def toggle_task_completion(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        task_id = data.get('id')
-        completed = data.get('completed')
-
-        try:
-            task = Task.objects.get(id=task_id)
-            task.completed = completed
-            task.save()
-            return JsonResponse({'success': True})
-        except Task.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Task not found'}, status=404)
-@csrf_exempt
-def complete_task(request, task_id):
-    if request.method == 'POST':
-        try:
-            task = Task.objects.get(id=task_id)
-            task.completed = not task.completed
-            task.save()
-            return JsonResponse({'completed': task.completed})
-        except Task.DoesNotExist:
-            return JsonResponse({'error': 'Task not found'}, status=404)
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
-@csrf_exempt
-def toggle_task_complete(request, task_id):
+def signup_view(request):
     if request.method == "POST":
-        try:
-            task = Task.objects.get(id=task_id)
-            task.completed = not task.completed
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('dashboard')
+    else:
+        form = SignUpForm()
+    return render(request, 'signup.html', {'form': form})
+
+@login_required
+def dashboard_view(request):
+    if request.user.role == 'assignee':
+        tasks = Task.objects.filter(assigned_to=request.user)
+        for task in tasks:
+            TaskStatus.objects.get_or_create(task=task, user=request.user)
+    else:
+        tasks = Task.objects.all()
+    return render(request, 'dashboard.html', {'tasks': tasks})
+
+
+@login_required
+def task_detail_view(request, task_id):
+    task = get_object_or_404(Task, id=task_id)
+    return render(request, 'task_detail.html', {'task': task})
+
+
+@login_required
+@require_POST
+def update_status_view(request, task_id):
+    task = get_object_or_404(Task, id=task_id)
+
+    if request.user not in task.assigned_to.all():
+        return HttpResponseForbidden()
+
+    new_status = request.POST.get('status')
+    if new_status in ['Not started', 'In progress', 'Completed']:
+        ts, _ = TaskStatus.objects.get_or_create(task=task, user=request.user)
+        ts.status = new_status
+        ts.save()
+
+    return redirect('dashboard')
+
+
+@login_required
+def edit_task(request, task_id):
+    task = get_object_or_404(Task, id=task_id)
+
+    if request.user.role != 'assigner' or task.assigner != request.user:
+        messages.warning(request, "You can't edit a task you didn't create.")
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        form = TaskForm(request.POST, instance=task)
+        if form.is_valid():
+            old_assignees = set(task.assigned_to.all())
+            new_task = form.save(commit=False)
+            new_assignees = set(form.cleaned_data['assigned_to'])
+
+            # Save the task to apply form updates
+            new_task.save()
+            form.save_m2m()
+
+            # Detect new assignees
+            added_assignees = new_assignees - old_assignees
+
+            # Assign default status to new assignees
+            for user in added_assignees:
+                TaskStatus.objects.get_or_create(task=task, user=user, defaults={'status': 'Not started'})
+
+            return redirect('dashboard')
+    else:
+        form = TaskForm(instance=task)
+
+    return render(request, 'edit_task.html', {'form': form, 'task': task})
+
+@login_required
+def delete_task_view(request, task_id):
+    task = get_object_or_404(Task, id=task_id)
+    
+    # Only assigners can delete tasks
+    if request.user.role != 'assigner' or task.assigner != request.user:
+        messages.warning(request, "You can't delete a task you didn't create.")
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        task.delete()
+        return redirect('dashboard')
+
+    return render(request, 'delete_task.html', {'task': task})
+
+
+@login_required
+def create_task(request):
+    if request.user.role != 'assigner':
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = TaskForm(request.POST)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.assigner = request.user
             task.save()
-            return JsonResponse({'completed': task.completed})
-        except Task.DoesNotExist:
-            return JsonResponse({'error': 'Task not found'}, status=404)
-    return JsonResponse({'error': 'Invalid method'}, status=405)
-        
+            form.save_m2m()
+
+            return redirect('dashboard')
+    else:
+        form = TaskForm()
+    return render(request, 'create_task.html', {'form': form})
+
+def login_view(request):
+    if request.method == "POST":
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect('dashboard')
+            else:
+                messages.error(request, "Invalid username or password.")
+        else:
+            messages.error(request, "Invalid username or password.")
+    else:
+        form = AuthenticationForm()
+    return render(request, 'login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
