@@ -17,9 +17,12 @@
 
 {% if user.role == 'assigner' %}
     <a href="{% url 'create_task' %}" class="btn btn-primary mb-3">Create New Task</a>
+    <h4>Tasks that are assigned</h4>
 {% endif %}
 
-<h4>Your Tasks</h4>
+{% if user.role == 'assignee' %}
+    <h4>Your Tasks</h4>
+{% endif %}
 <table class="table table-striped">
     <thead>
         <tr>
